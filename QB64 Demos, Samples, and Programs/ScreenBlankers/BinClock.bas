@@ -20,44 +20,44 @@
 '+-------------------------------------------------------------------+
 
 'get desktop sizes
-di& = _ScreenImage
-desX% = _Width(di&)
-desY% = _Height(di&)
-scrX% = _Width(di&): If scrX% < 875 Then scrX% = 875
-scrY% = _Height(di&): If scrY% < 465 Then scrY% = 465
-_FreeImage di&
-Dim Shared scale%, timg&
-If desX% <> scrX% Or desY% <> scrY% Then scale% = -1: Else scale% = 0
+di& = _SCREENIMAGE
+desX% = _WIDTH(di&)
+desY% = _HEIGHT(di&)
+scrX% = _WIDTH(di&): IF scrX% < 875 THEN scrX% = 875
+scrY% = _HEIGHT(di&): IF scrY% < 465 THEN scrY% = 465
+_FREEIMAGE di&
+DIM SHARED scale%, timg&
+IF desX% <> scrX% OR desY% <> scrY% THEN scale% = -1: ELSE scale% = 0
 
 'setup screen
-Screen _NewImage(desX%, desY%, 256)
-_Delay 0.2: _ScreenMove _Middle
-_Delay 0.2: _FullScreen
-If scale% Then
-    timg& = _NewImage(scrX%, scrY%, 256)
-    If timg& < -1 Then _Dest timg&: Else System
-End If
-scrFont& = _LoadFont("C:\Windows\Fonts\timesbd.ttf", 72)
-_Font scrFont&
+SCREEN _NEWIMAGE(desX%, desY%, 256)
+_DELAY 0.2: _SCREENMOVE _MIDDLE
+_DELAY 0.2: _FULLSCREEN
+IF scale% THEN
+    timg& = _NEWIMAGE(scrX%, scrY%, 256)
+    IF timg& < -1 THEN _DEST timg&: ELSE SYSTEM
+END IF
+scrFont& = _LOADFONT("C:\Windows\Fonts\timesbd.ttf", 72)
+_FONT scrFont&
 
 '3D space origin is on these screen coordinates
-Dim Shared dx%: dx% = (scrX% - 875) \ 2
-Dim Shared dy%: dy% = (scrY% - 465) \ 2
-Dim Shared cx%: cx% = 30 + dx%
-Dim Shared cy%: cy% = 250 + dy%
+DIM SHARED dx%: dx% = (scrX% - 875) \ 2
+DIM SHARED dy%: dy% = (scrY% - 465) \ 2
+DIM SHARED cx%: cx% = 30 + dx%
+DIM SHARED cy%: cy% = 250 + dy%
 
 'init BCD discs
-Type Disc
-    x As Integer
-    y As Integer
-    z As Integer
-    r As Integer
-    a As Integer
-End Type
-Dim Shared Discs(23) As Disc
+TYPE Disc
+    x AS INTEGER
+    y AS INTEGER
+    z AS INTEGER
+    r AS INTEGER
+    a AS INTEGER
+END TYPE
+DIM SHARED Discs(23) AS Disc
 InitDiscs
-Dim Shared curState&: curState& = 0
-Dim Shared newState&: newState& = 0
+DIM SHARED curState&: curState& = 0
+DIM SHARED newState&: newState& = 0
 
 'draw hour/minute/seconds separators
 Line3D 175, 0, 0, 175, 440, 0, 2
@@ -66,120 +66,125 @@ Line3D 425, 0, 0, 425, 440, 0, 2
 Line3D 425, 0, 0, 425, 0, -110, 2
 
 'main loop
-_MouseHide
-_Display
-Do
-    _Limit 1
+_MOUSEHIDE
+_DISPLAY
+DO
+    _LIMIT 1
     FlipDiscs
-    Do While _MouseInput
-        mx% = mx% + _MouseMovementX
-        my% = my% + _MouseMovementY
-    Loop
-Loop While InKey$ = "" And mx% = 0 And my% = 0
-_AutoDisplay
+    DO WHILE _MOUSEINPUT
+        mx% = mx% + _MOUSEMOVEMENTX
+        my% = my% + _MOUSEMOVEMENTY
+    LOOP
+LOOP WHILE INKEY$ = "" AND mx% = 0 AND my% = 0
+_AUTODISPLAY
 
 'cleanup
-_Font 16
-_FreeFont scrFont&
-If scale% Then _FreeImage timg&
-System
+_FONT 16
+_FREEFONT scrFont&
+IF scale% THEN _FREEIMAGE timg&
+SYSTEM
 
 'run the clock
-Sub FlipDiscs
-    t$ = Time$
+SUB FlipDiscs
+t$ = TIME$
 newState& = (VAL(MID$(t$, 1, 1)) * (2 ^ 20)) + (VAL(MID$(t$, 2, 1)) * (2 ^ 16)) +_
             (VAL(MID$(t$, 4, 1)) * (2 ^ 12)) + (VAL(MID$(t$, 5, 1)) * (2 ^ 8)) +_
             (VAL(MID$(t$, 7, 1)) * (2 ^ 4)) + (VAL(MID$(t$, 8, 1)) * (2 ^ 0))
-    diff& = curState& Xor newState&
-    curState& = newState&
-    For rot% = 5 To 90 Step 5
-        For n% = 0 To 23
-            If (n% Mod 4) = 0 Then AxisSegments Discs(n%).x
-            If diff& And (2 ^ n%) Then
-                Circle3D Discs(n%).x, Discs(n%).y, Discs(n%).z, Discs(n%).r, Discs(n%).a, 0
-                Circle3D Discs(n%).x, Discs(n%).y, Discs(n%).z, Discs(n%).r, Discs(n%).a + 5, 15
-                Discs(n%).a = Discs(n%).a + 5
-                If Discs(n%).a = 180 Then Discs(n%).a = 0
-            Else
-                Circle3D Discs(n%).x, Discs(n%).y, Discs(n%).z, Discs(n%).r, Discs(n%).a, 15
-            End If
-        Next n%
-        If rot% = 60 Then
-            Color 1
-            _PrintString (50 + dx%, 280 + dy%), Mid$(t$, 1, 2)
-            _PrintString (300 + dx%, 280 + dy%), Mid$(t$, 4, 2)
-            _PrintString (550 + dx%, 280 + dy%), Mid$(t$, 7, 2)
-            _PrintString (300 - _PrintWidth(Left$(Date$, 4)) + dx%, 380 + dy%), Date$
-        End If
-        If scale% Then _PutImage , timg&, 0
-        _Display
-    Next rot%
-End Sub
+diff& = curState& XOR newState&
+curState& = newState&
+FOR rot% = 5 TO 90 STEP 5
+    FOR n% = 0 TO 23
+        IF (n% MOD 4) = 0 THEN AxisSegments Discs(n%).x
+        IF diff& AND (2 ^ n%) THEN
+            Circle3D Discs(n%).x, Discs(n%).y, Discs(n%).z, Discs(n%).r, Discs(n%).a, 0
+            Circle3D Discs(n%).x, Discs(n%).y, Discs(n%).z, Discs(n%).r, Discs(n%).a + 5, 15
+            Discs(n%).a = Discs(n%).a + 5
+            IF Discs(n%).a = 180 THEN Discs(n%).a = 0
+        ELSE
+            Circle3D Discs(n%).x, Discs(n%).y, Discs(n%).z, Discs(n%).r, Discs(n%).a, 15
+        END IF
+    NEXT n%
+    IF rot% = 60 THEN
+        COLOR 1
+        _PRINTSTRING (50 + dx%, 280 + dy%), MID$(t$, 1, 2)
+        _PRINTSTRING (300 + dx%, 280 + dy%), MID$(t$, 4, 2)
+        _PRINTSTRING (550 + dx%, 280 + dy%), MID$(t$, 7, 2)
+        _PRINTSTRING (300 - _PRINTWIDTH(LEFT$(DATE$, 4)) + dx%, 380 + dy%), DATE$
+    END IF
+    IF scale% THEN _PUTIMAGE , timg&, 0
+    _DISPLAY
+NEXT rot%
+END SUB
 
 'setup start values for all discs
-Sub InitDiscs
-    n% = 0
-    For i% = 600 To 500 Step -100
-        For j% = 70 To 370 Step 100
-            Discs(n%).x = i%
-            Discs(n%).y = j%
-            Discs(n%).z = 0
-            Discs(n%).r = 30
-            Discs(n%).a = 0
-            n% = n% + 1
-        Next j%
-    Next i%
-    For i% = 350 To 250 Step -100
-        For j% = 70 To 370 Step 100
-            Discs(n%).x = i%
-            Discs(n%).y = j%
-            Discs(n%).z = 0
-            Discs(n%).r = 30
-            Discs(n%).a = 0
-            n% = n% + 1
-        Next j%
-    Next i%
-    For i% = 100 To 0 Step -100
-        For j% = 70 To 370 Step 100
-            Discs(n%).x = i%
-            Discs(n%).y = j%
-            Discs(n%).z = 0
-            Discs(n%).r = 30
-            Discs(n%).a = 0
-            n% = n% + 1
-        Next j%
-    Next i%
-End Sub
+SUB InitDiscs
+n% = 0
+FOR i% = 600 TO 500 STEP -100
+    FOR j% = 70 TO 370 STEP 100
+        Discs(n%).x = i%
+        Discs(n%).y = j%
+        Discs(n%).z = 0
+        Discs(n%).r = 30
+        Discs(n%).a = 0
+        n% = n% + 1
+    NEXT j%
+NEXT i%
+FOR i% = 350 TO 250 STEP -100
+    FOR j% = 70 TO 370 STEP 100
+        Discs(n%).x = i%
+        Discs(n%).y = j%
+        Discs(n%).z = 0
+        Discs(n%).r = 30
+        Discs(n%).a = 0
+        n% = n% + 1
+    NEXT j%
+NEXT i%
+FOR i% = 100 TO 0 STEP -100
+    FOR j% = 70 TO 370 STEP 100
+        Discs(n%).x = i%
+        Discs(n%).y = j%
+        Discs(n%).z = 0
+        Discs(n%).r = 30
+        Discs(n%).a = 0
+        n% = n% + 1
+    NEXT j%
+NEXT i%
+END SUB
 
 'draw rotation axis segments between discs
-Sub AxisSegments (x%)
-    Line3D x%, 0, 0, x%, 40, 0, 4
-    Line3D x%, 100, 0, x%, 140, 0, 4
-    Line3D x%, 200, 0, x%, 240, 0, 4
-    Line3D x%, 300, 0, x%, 340, 0, 4
-    Line3D x%, 400, 0, x%, 440, 0, 4
-End Sub
+SUB AxisSegments (x%)
+Line3D x%, 0, 0, x%, 40, 0, 4
+Line3D x%, 100, 0, x%, 140, 0, 4
+Line3D x%, 200, 0, x%, 240, 0, 4
+Line3D x%, 300, 0, x%, 340, 0, 4
+Line3D x%, 400, 0, x%, 440, 0, 4
+END SUB
 
-Sub Line3D (x1%, y1%, z1%, x2%, y2%, z2%, col%)
-    'x1%/y1%/z1% = start, x2%/y2%/z2% = end, col% = color pen
-    x1# = (x1% + (y1% * 0.5)): z1# = (z1% + (y1% * 0.5))
-    x2# = (x2% + (y2% * 0.5)): z2# = (z2% + (y2% * 0.5))
-    Line (x1# + cx% - 1, -z1# + cy%)-(x2# + cx% - 1, -z2# + cy%), col%
-    Line (x1# + cx%, -z1# + cy%)-(x2# + cx%, -z2# + cy%), col%
-    Line (x1# + cx% + 1, -z1# + cy%)-(x2# + cx% + 1, -z2# + cy%), col%
-End Sub
+SUB Line3D (x1%, y1%, z1%, x2%, y2%, z2%, col%)
+'x1%/y1%/z1% = start, x2%/y2%/z2% = end, col% = color pen
+x1# = (x1% + (y1% * 0.5)): z1# = (z1% + (y1% * 0.5))
+x2# = (x2% + (y2% * 0.5)): z2# = (z2% + (y2% * 0.5))
+LINE (x1# + cx% - 1, -z1# + cy%)-(x2# + cx% - 1, -z2# + cy%), col%
+LINE (x1# + cx%, -z1# + cy%)-(x2# + cx%, -z2# + cy%), col%
+LINE (x1# + cx% + 1, -z1# + cy%)-(x2# + cx% + 1, -z2# + cy%), col%
+END SUB
 
-Sub Circle3D (x%, y%, z%, r%, ba%, col%)
-    'x%/y%/z% = center, r% = radius, ba% = B-Axis angle, col% = color pen
-    mx# = (x% + (y% * 0.5)): mz# = (z% + (y% * 0.5))
-    zx# = r% * Cos(ba% * 0.017453292519943)
-    zz# = r% * Sin(ba% * 0.017453292519943)
-    For cir% = 0 To 359 Step 5
-        x# = zx# * Cos(cir% * 0.017453292519943)
-        y# = r% * Sin(cir% * 0.017453292519943)
-        z# = zz# * Cos(cir% * 0.017453292519943)
-        x# = (x# + (y# * 0.5)): z# = (z# + (y# * 0.5))
-        Line (x# + mx# + cx% - 1, -z# + -mz# + cy% - 1)-(x# + mx# + cx% + 1, -z# + -mz# + cy% + 1), col%, BF
-    Next cir%
-End Sub
+SUB Circle3D (x%, y%, z%, r%, ba%, col%)
+'x%/y%/z% = center, r% = radius, ba% = B-Axis angle, col% = color pen
+mx# = (x% + (y% * 0.5)): mz# = (z% + (y% * 0.5))
+zx# = r% * COS(ba% * 0.017453292519943)
+zz# = r% * SIN(ba% * 0.017453292519943)
+FOR cir% = 0 TO 359 STEP 5
+    x# = zx# * COS(cir% * 0.017453292519943)
+    y# = r% * SIN(cir% * 0.017453292519943)
+    z# = zz# * COS(cir% * 0.017453292519943)
+    x# = (x# + (y# * 0.5)): z# = (z# + (y# * 0.5))
+    LINE (x# + mx# + cx% - 1, -z# + -mz# + cy% - 1)-(x# + mx# + cx% + 1, -z# + -mz# + cy% + 1), col%, BF
+NEXT cir%
+END SUB
+
+'=====================================================================
+FUNCTION VersionBinClock$
+VersionBinClock$ = MID$("$VER: BinClock blanker 1.0 (10-Sep-2018) by RhoSigma :END$", 7, 46)
+END FUNCTION
 

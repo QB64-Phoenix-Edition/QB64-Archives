@@ -21,163 +21,168 @@
 '| any questions or suggestions. Thanx for your interest in my work. |
 '+-------------------------------------------------------------------+
 
-Dim Shared scrX%, scrY%
-di& = _ScreenImage
-scrX% = _Width(di&)
-scrY% = _Height(di&)
-_FreeImage di&
-si& = _NewImage(scrX%, scrY%, 256)
-ti& = _NewImage(scrX%, scrY%, 256)
-Screen si&
-_Delay 0.2: _ScreenMove _Middle
-_Delay 0.2: _FullScreen
+DIM SHARED scrX%, scrY%
+di& = _SCREENIMAGE
+scrX% = _WIDTH(di&)
+scrY% = _HEIGHT(di&)
+_FREEIMAGE di&
+si& = _NEWIMAGE(scrX%, scrY%, 256)
+ti& = _NEWIMAGE(scrX%, scrY%, 256)
+SCREEN si&
+_DELAY 0.2: _SCREENMOVE _MIDDLE
+_DELAY 0.2: _FULLSCREEN
 
-Const MAX_DEGREE = 10 '2 to 20
+CONST MAX_DEGREE = 10 '2 to 20
 
-Type point
-    x As Double
-    y As Double
-    s As Integer
-End Type
-ReDim spans(0 To 1) As point
+TYPE point
+    x AS DOUBLE
+    y AS DOUBLE
+    s AS INTEGER
+END TYPE
+REDIM spans(0 TO 1) AS point
 
-_MouseHide
-While InKey$ = "" And mx% = 0 And my% = 0
-    _Dest ti&: Cls
-    _Dest 0: Cls
+_MOUSEHIDE
+WHILE INKEY$ = "" AND mx% = 0 AND my% = 0
+    _DEST ti&: CLS
+    _DEST 0: CLS
 
-    Randomize Timer
+    RANDOMIZE TIMER
     np% = RangeRand%(2, MAX_DEGREE)
-    ReDim points(0 To np%) As point
-    For i% = 0 To np%
+    REDIM points(0 TO np%) AS point
+    FOR i% = 0 TO np%
         points(i%).x = RangeRand%(20, scrX% - 20)
         points(i%).y = RangeRand%(20, scrY% - 20)
-    Next i%
+    NEXT i%
 
     f# = 0: st# = 0.0001: done% = 0
-    Do
-        _Limit 20 / st# * 0.005
-        If f# > 1 Then f# = 1: done% = -1
+    DO
+        _LIMIT 20 / st# * 0.005
+        IF f# > 1 THEN f# = 1: done% = -1
 
         CalcFracPoints points(), spans(), f#
-        _Dest ti&
-        x# = spans(UBound(spans)).x
-        y# = spans(UBound(spans)).y
-        If c% < 32 Or c% > 56 Then c% = 32
-        Circle (x#, y#), 1, c%
-        Circle (x#, y#), 2, c%
-        Circle (x#, y#), 3, c%
+        _DEST ti&
+        x# = spans(UBOUND(spans)).x
+        y# = spans(UBOUND(spans)).y
+        IF c% < 32 OR c% > 56 THEN c% = 32
+        CIRCLE (x#, y#), 1, c%
+        CIRCLE (x#, y#), 2, c%
+        CIRCLE (x#, y#), 3, c%
         c% = c% + 1
-        _Dest 0
-        Cls
-        _PutImage , ti&
+        _DEST 0
+        CLS
+        _PUTIMAGE , ti&
         DrawLines points(), &HFFFF
         DrawLines spans(), &B1001100110011001
-        For i% = LBound(spans) To UBound(spans) - 1
-            Circle (spans(i%).x, spans(i%).y), 1, 14
-            Circle (spans(i%).x, spans(i%).y), 2, 14
-        Next i%
-        Circle (x#, y#), 1, 4
-        Circle (x#, y#), 2, 4
-        Circle (x#, y#), 3, 12
-        Circle (x#, y#), 4, 15
-        Circle (x#, y#), 5, 15
-        _Display
+        FOR i% = LBOUND(spans) TO UBOUND(spans) - 1
+            CIRCLE (spans(i%).x, spans(i%).y), 1, 14
+            CIRCLE (spans(i%).x, spans(i%).y), 2, 14
+        NEXT i%
+        CIRCLE (x#, y#), 1, 4
+        CIRCLE (x#, y#), 2, 4
+        CIRCLE (x#, y#), 3, 12
+        CIRCLE (x#, y#), 4, 15
+        CIRCLE (x#, y#), 5, 15
+        _DISPLAY
 
-        If ox# <> 0 Then
-            If Abs(ox# - x#) > 3 Or Abs(oy# - y#) > 3 Then
+        IF ox# <> 0 THEN
+            IF ABS(ox# - x#) > 3 OR ABS(oy# - y#) > 3 THEN
                 st# = st# / 2
-            ElseIf Abs(ox# - x#) < 2 Or Abs(oy# - y#) < 2 Then
+            ELSEIF ABS(ox# - x#) < 2 OR ABS(oy# - y#) < 2 THEN
                 st# = st# * 2
-            End If
-            If st# > 0.005 Then st# = 0.005
-        End If
+            END IF
+            IF st# > 0.005 THEN st# = 0.005
+        END IF
         ox# = x#: oy# = y#
         f# = f# + st#
 
-        Do While _MouseInput
-            mx% = mx% + _MouseMovementX
-            my% = my% + _MouseMovementY
-        Loop
-        If InKey$ <> "" Or mx% + my% <> 0 Then Exit While
-    Loop Until done%
+        DO WHILE _MOUSEINPUT
+            mx% = mx% + _MOUSEMOVEMENTX
+            my% = my% + _MOUSEMOVEMENTY
+        LOOP
+        IF INKEY$ <> "" OR mx% + my% <> 0 THEN EXIT WHILE
+    LOOP UNTIL done%
 
     done% = 50: mx% = 0: my% = 0
-    Do
-        _Limit 20
-        Do While _MouseInput
-            mx% = mx% + _MouseMovementX
-            my% = my% + _MouseMovementY
-        Loop
-        If InKey$ <> "" Or mx% + my% <> 0 Then Exit While
+    DO
+        _LIMIT 20
+        DO WHILE _MOUSEINPUT
+            mx% = mx% + _MOUSEMOVEMENTX
+            my% = my% + _MOUSEMOVEMENTY
+        LOOP
+        IF INKEY$ <> "" OR mx% + my% <> 0 THEN EXIT WHILE
         done% = done% - 1
-    Loop While done%
+    LOOP WHILE done%
 
-    _PutImage , ti&
-    _Display
+    _PUTIMAGE , ti&
+    _DISPLAY
 
     done% = 100: mx% = 0: my% = 0
-    Do
-        _Limit 20
-        col~& = _PaletteColor(56)
-        For i% = 56 To 33 Step -1
-            _PaletteColor i%, _PaletteColor(i% - 1)
-        Next i%
-        _PaletteColor 32, col~&
-        _Display
-        Do While _MouseInput
-            mx% = mx% + _MouseMovementX
-            my% = my% + _MouseMovementY
-        Loop
-        If InKey$ <> "" Or mx% + my% <> 0 Then Exit While
+    DO
+        _LIMIT 20
+        col~& = _PALETTECOLOR(56)
+        FOR i% = 56 TO 33 STEP -1
+            _PALETTECOLOR i%, _PALETTECOLOR(i% - 1)
+        NEXT i%
+        _PALETTECOLOR 32, col~&
+        _DISPLAY
+        DO WHILE _MOUSEINPUT
+            mx% = mx% + _MOUSEMOVEMENTX
+            my% = my% + _MOUSEMOVEMENTY
+        LOOP
+        IF INKEY$ <> "" OR mx% + my% <> 0 THEN EXIT WHILE
         done% = done% - 1
-    Loop While done%
-Wend
+    LOOP WHILE done%
+WEND
 
-_FullScreen _Off
-_Delay 0.2: Screen 0
-_Delay 0.2: _FreeImage ti&
-_Delay 0.2: _FreeImage si&
-System
+_FULLSCREEN _OFF
+_DELAY 0.2: SCREEN 0
+_DELAY 0.2: _FREEIMAGE ti&
+_DELAY 0.2: _FREEIMAGE si&
+SYSTEM
 
 '=====================================================================
-Sub CalcFracPoints (pIn() As point, pOut() As point, frac#)
-    iLns% = UBound(pIn) - LBound(pIn) 'no +1 here, as lines = 1 less than points
-    oPts% = (iLns% * (iLns% + 1)) / 2 'sum up 1 to n, which is n*(n+1)/2
-    ReDim pOut(0 To oPts% - 1) As point
+SUB CalcFracPoints (pIn() AS point, pOut() AS point, frac#)
+iLns% = UBOUND(pIn) - LBOUND(pIn) 'no +1 here, as lines = 1 less than points
+oPts% = (iLns% * (iLns% + 1)) / 2 'sum up 1 to n, which is n*(n+1)/2
+REDIM pOut(0 TO oPts% - 1) AS point
 
-    p% = 0
-    For i% = LBound(pIn) To UBound(pIn) - 1
-        pOut(p%).x = pIn(i%).x + frac# * (pIn(i% + 1).x - pIn(i%).x)
-        pOut(p%).y = pIn(i%).y + frac# * (pIn(i% + 1).y - pIn(i%).y)
+p% = 0
+FOR i% = LBOUND(pIn) TO UBOUND(pIn) - 1
+    pOut(p%).x = pIn(i%).x + frac# * (pIn(i% + 1).x - pIn(i%).x)
+    pOut(p%).y = pIn(i%).y + frac# * (pIn(i% + 1).y - pIn(i%).y)
+    p% = p% + 1
+NEXT i%
+pOut(p% - 1).s = -1 'stop flag for drawing
+
+FOR j% = iLns% TO 2 STEP -1
+    FOR i% = p% - j% TO p% - 2
+        pOut(p%).x = pOut(i%).x + frac# * (pOut(i% + 1).x - pOut(i%).x)
+        pOut(p%).y = pOut(i%).y + frac# * (pOut(i% + 1).y - pOut(i%).y)
         p% = p% + 1
-    Next i%
+    NEXT i%
     pOut(p% - 1).s = -1 'stop flag for drawing
-
-    For j% = iLns% To 2 Step -1
-        For i% = p% - j% To p% - 2
-            pOut(p%).x = pOut(i%).x + frac# * (pOut(i% + 1).x - pOut(i%).x)
-            pOut(p%).y = pOut(i%).y + frac# * (pOut(i% + 1).y - pOut(i%).y)
-            p% = p% + 1
-        Next i%
-        pOut(p% - 1).s = -1 'stop flag for drawing
-    Next j%
-End Sub
+NEXT j%
+END SUB
 
 '=====================================================================
-Sub DrawLines (pIn() As point, sty%)
-    col~& = 1
-    For i% = LBound(pIn) To UBound(pIn) - 1
-        Line (pIn(i%).x, pIn(i%).y)-(pIn(i% + 1).x, pIn(i% + 1).y), col~&, , sty%
-        If pIn(i% + 1).s Then
-            col~& = (col~& + 1) And 15
-            i% = i% + 1 'skip to next sequence
-        End If
-    Next i%
-End Sub
+SUB DrawLines (pIn() AS point, sty%)
+col~& = 1
+FOR i% = LBOUND(pIn) TO UBOUND(pIn) - 1
+    LINE (pIn(i%).x, pIn(i%).y)-(pIn(i% + 1).x, pIn(i% + 1).y), col~&, , sty%
+    IF pIn(i% + 1).s THEN
+        col~& = (col~& + 1) AND 15
+        i% = i% + 1 'skip to next sequence
+    END IF
+NEXT i%
+END SUB
 
 '=====================================================================
-Function RangeRand% (low%, high%)
-    RangeRand% = Int(Rnd(1) * (high% - low% + 1)) + low%
-End Function
+FUNCTION RangeRand% (low%, high%)
+RangeRand% = INT(RND(1) * (high% - low% + 1)) + low%
+END FUNCTION
+
+'=====================================================================
+FUNCTION VersionBezier$
+VersionBezier$ = MID$("$VER: Bezier blanker 1.0 (07-Jul-2021) by RhoSigma :END$", 7, 44)
+END FUNCTION
 
