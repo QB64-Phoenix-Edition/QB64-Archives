@@ -1,6 +1,6 @@
 # Important Note by Steve:  
 
-These files were taken from https://github.com/a740g/QB64-Museum and added here, as a place to highlight them and make them easy for the public to find and reference.  a470g is still updating his orignial site and adding new samples there all the time, so what you find here will probably not represent the whole works of what he has archived.  This folder was last updated and had its contents synced to his site's on Jan 23, 2033, to give anyone who browses and finds themselves here a clear idea of how out-of-date the contents of this folder may be.
+These files were taken from https://github.com/a740g/QB64-Museum and added here, as a place to highlight them and make them easy for the public to find and reference.  a470g is still updating his orignial site and adding new samples there all the time, so what you find here will probably not represent the whole works of what he has archived.  This folder was last updated and had its contents synced to his site's on Jan 23, 2023, to give anyone who browses and finds themselves here a clear idea of how out-of-date the contents of this folder may be.
 
 
 **************************************************************************************************************
