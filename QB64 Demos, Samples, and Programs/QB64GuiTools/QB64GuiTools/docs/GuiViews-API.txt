@@ -1,5 +1,22 @@
-GuiViews - the multiple forms/windows API of GuiTools
-=====================================================
+'+---------------+---------------------------------------------------+
+'| ###### ###### |     .--. .         .-.                            |
+'| ##  ## ##   # |     |   )|        (   ) o                         |
+'| ##  ##  ##    |     |--' |--. .-.  `-.  .  .-...--.--. .-.        |
+'| ######   ##   |     |  \ |  |(   )(   ) | (   ||  |  |(   )       |
+'| ##      ##    |     '   `'  `-`-'  `-'-' `-`-`|'  '  `-`-'`-      |
+'| ##     ##   # |                            ._.'                   |
+'| ##     ###### | Sources & Documents placed under the MIT License. |
+'+---------------+---------------------------------------------------+
+'|                                                                   |
+'| === GuiViews-API.txt ===                                          |
+'|                                                                   |
+'| == Brief overview to the multiple forms/windows API of GuiTools.  |
+'|                                                                   |
+'+-------------------------------------------------------------------+
+'| Done by RhoSigma, R.Heyder, provided AS IS, use at your own risk. |
+'| Find me in the QB64 Forum or mail to support@rhosigma-cw.net for  |
+'| any questions or suggestions. Thanx for your interest in my work. |
+'+-------------------------------------------------------------------+
 
 Find the following SUBs and FUNCTIONs and its respective descriptions in
 file dev_framework\classes\GuiClasses.bm.
@@ -23,7 +40,8 @@ SUB DeleteGuiView (vix&)
 SUB OpenGuiView (winIcon$, winTitle$, vix&)
 - open the given GuiView's window with optional icon and title
 - use in your event handlers as required
-- does not hurt if the respective window is already open
+- does not hurt if the respective window is already open, it's tried to
+  bring the window to front in that case
 
 SUB CloseGuiView (vix&)
 - close the given GuiView's window programmatically

@@ -282,6 +282,9 @@ proof, ie. "ThisName" = "THISNAME" = "This NAME" = "  T   h I s    n  Am E   ".
        - StringC             <LEFT|center|right>
        - TextC               <LEFT|center|right>
        - RadioC              <left|RIGHT>
+(BOOL) TEXTSCROLL       pub: Only supported in TextC objects, it enables scrolling
+                             of the text, if it exceeds the object width. If false
+                             or omitted, then too long text is simply clipped.
 (WORD) TEXTMOVEX        pub: Delta X adjustment for text.
 (WORD) TEXTMOVEY        pub: Delta Y adjustment for text. (Object's text position
                              calculation is optimized for use of the QB64 inbuild
@@ -344,14 +347,14 @@ proof, ie. "ThisName" = "THISNAME" = "This NAME" = "  T   h I s    n  Am E   ".
                              should have a palette entry set up to match the
                              respective color perfectly. Otherwise it could
                              happen that your transparent color is compromised
-                             when the image is remapped. Full alpha transparency
-                             usually results into full black in the remapped
-                             image, which is pen 39 in GuiTools its palette.
+                             when the image is remapped. For images with a real
+                             alpha channel (as the provided icons) use number 0.
 (BOOL) BACKFILL         pub: If true, then the image is installed as background
                              for the program screen/window. Note there can be
-                             only one background image at a time, ie. INITing
-                             a new one will automatically dispose the current
-                             background image object (if any).
+                             only one background image (per GUIVIEW) at a time,
+                             ie. INITing a new one will automatically dispose
+                             the current background image object (if any) of
+                             the respective GUIVIEW.
 
 (LONG) SYMBOLOBJECT     pub: If a preselected symbol object shall be assigned
                              to another object type, then this must be the
@@ -413,12 +416,19 @@ proof, ie. "ThisName" = "THISNAME" = "This NAME" = "  T   h I s    n  Am E   ".
                              the LEVEL does still hold the numeric value.
 (TEXT) ALTMAX           pub: Alternative level output, if a slider is on its
                              maximum level.
-(BOOL) NOSHOW           pub: Set true to suppress the level output in the
+(BOOL) NOSHOW           pub: Set true to suppress the button frame and the
+       - ButtonC             beckground image. Only the assigned image/symbol
+                             and the button text are drawn keeping the the
+                             current background of the hot area. Intended
+                             for toolbar creation.
+       - SliderC             Set true to suppress the level output in the
                              slider's knob. You may use a ModelC Forwarder
                              object to route the actual level to another
                              display object instead. You may also use a
                              ModelC Ratio object instead to implement a
                              floating point slider (see GuiToolsFramework.pdf).
+       - StringC             Set true to replace the input with askerisks
+                             like in a password field.
 
 (WORD) VISIBLENUM       pub: ScrollerC needs the number of visible lines/columns
                              of the view it is connected to (represented by the

@@ -42,10 +42,10 @@
 '   you may omit the path, if the image file is located within the
 '   ImageClass's internal search tree, ie. the following locations are
 '   searched incl. all its sub-folders:
-'    1.) the GuiTools images folder in your qb64 folder (QB64GuiTools\images)
-'        - centralize your images here while you develop your applications
-'    2.) the current user's temp folder (appTempDir$)
+'    1.) the current user's temp folder (appTempDir$)
 '        - this is preferred for embedded files write back
+'    2.) the GuiTools images folder in your QB64 folder (QB64GuiTools\images)
+'        - centralize your images here while you develop your applications
 '    3.) your distributed application folder (appHomePath$)
 '        - where your EXE is after installing your app package
 '   Note that the first found file is used. If you have multiple images
@@ -117,11 +117,6 @@ SELECT CASE methodID$
         tagsOpt$ = ""
         GOSUB meKill
         'Result Tags: ERROR/WARNING or empty
-    CASE "Newpal"
-        tagsReq$ = ""
-        tagsOpt$ = ""
-        GOSUB meNewpal
-        'Result Tags: empty
     CASE "Draw"
         tagsReq$ = "OBJECT,"
         tagsOpt$ = "LEFT,TOP," 'properties of parent object
@@ -172,12 +167,12 @@ ELSE
             IF NOT ValidateTags%(tagsID$, "TOOLTIP", 0) THEN SetTag tagsID$, "TOOLTIP", ifil$
             '--- on failure try to load from some predefined locations ---
             IF ihan& >= -1 AND ifil$ <> "" THEN
-                '--- the GuiTools images folder in the qb64 folder (if EXEs saved in qb64 folder) ---
-                IF ihan& >= -1 THEN ihan& = _LOADIMAGE(SearchFile$("QB64GuiTools\images\", imus$, ifil$), 32)
-                '--- the GuiTools images folder in your qb64 folder (if EXEs saved in source folder) ---
-                IF ihan& >= -1 THEN ihan& = _LOADIMAGE(SearchFile$("..\images\", imus$, ifil$), 32)
                 '--- the current user's temp folder (preferred for embedded files write back) ---
-                IF ihan& >= -1 THEN ihan& = _LOADIMAGE(SearchFile$(appTempDir$, imus$, ifil$), 32)
+                IF ihan& >= -1 THEN ihan& = _LOADIMAGE(SearchFile$(appTempDir$, "", ifil$), 32)
+                '--- the GuiTools images folder in the QB64 folder (if EXEs saved in qb64 folder) ---
+                IF ihan& >= -1 THEN ihan& = _LOADIMAGE(SearchFile$("QB64GuiTools\images\", imus$, ifil$), 32)
+                '--- the GuiTools images folder in your QB64 folder (if EXEs saved in source folder) ---
+                IF ihan& >= -1 THEN ihan& = _LOADIMAGE(SearchFile$("..\images\", imus$, ifil$), 32)
                 '--- the distributed app folder (where the EXE is after installing the app package) ---
                 IF ihan& >= -1 THEN ihan& = _LOADIMAGE(SearchFile$(appHomePath$, imus$, ifil$), 32)
             END IF
@@ -275,7 +270,11 @@ meGet:
 IF ValidObject%(this&, thisTag$, ImageRes$, classID$, methodID$, tagsID$) THEN
     '--- get the requested tags ---
     temp$ = GetTagData$(tagsID$, "TAGNAMES", "n/a")
-    IF temp$ <> "n/a" THEN ImageRes$ = GetTags$(guiObjects$(objData%, this&), temp$)
+    IF temp$ <> "n/a" THEN
+        ImageRes$ = GetTags$(guiObjects$(objData%, this&), temp$)
+    ELSE
+        ImageRes$ = GetTags$(guiObjects$(objData%, this&), guiInitTags$)
+    END IF
 END IF
 RETURN
 '---------------------------------------------------------------------
@@ -307,43 +306,40 @@ IF ValidObject%(this&, thisTag$, ImageRes$, classID$, methodID$, tagsID$) THEN
 END IF
 RETURN
 '---------------------------------------------------------------------
-meNewpal:
-'--- discard all remapped images ----
-FOR oix& = 1 TO UBOUND(guiObjects$, 2)
-    IF guiObjects$(objType%, oix&) = classID$ THEN
-        rhan& = VAL(GetTagData$(guiObjects$(objData%, oix&), "RHANDLE", "0"))
-        IF rhan& < -1 THEN _FREEIMAGE rhan&
-        RemTag guiObjects$(objData%, oix&), "RHANDLE"
-    END IF
-NEXT oix&
-'--- clear near color array and schedule gui refresh ---
-REDIM fsNearCol%(&HFFFFFF)
-SetTag guiObjects$(0, 0), "GUIREFRESH", "true"
-RETURN
-'---------------------------------------------------------------------
 meDraw:
 IF ValidObject%(this&, thisTag$, ImageRes$, classID$, methodID$, tagsID$) THEN
     '--- don't draw, if unassigned and not standalone ---
     IF MID$(guiObjects$(objFlags%, this&), 2, 1) = "-" AND _
         NOT BoolTagTrue%(guiObjects$(objData%, this&), "STANDALONE") THEN RETURN
+    '--- get parent's position ---
+    plft% = VAL(GetTagData$(tagsID$, "LEFT", "0"))
+    ptop% = VAL(GetTagData$(tagsID$, "TOP", "0"))
+    '--- get object's properties ---
+    left% = plft% + VAL(GetTagData$(guiObjects$(objData%, this&), "LEFT", "0"))
+    topp% = ptop% + VAL(GetTagData$(guiObjects$(objData%, this&), "TOP", "0"))
+    widt% = VAL(GetTagData$(guiObjects$(objData%, this&), "WIDTH", "0"))
+    heig% = VAL(GetTagData$(guiObjects$(objData%, this&), "HEIGHT", "0"))
+    ccol$ = GetTagData$(guiObjects$(objData%, this&), "CLEARCOLOR", "n/a")
     '--- check for remapped image ---
     ihan& = VAL(GetTagData$(guiObjects$(objData%, this&), "IHANDLE", "0"))
     rhan& = VAL(GetTagData$(guiObjects$(objData%, this&), "RHANDLE", "0"))
-    IF rhan& >= -1 THEN rhan& = RemapImageFS&(ihan&, _DEST)
+    IF rhan& >= -1 THEN
+        bhan& = -1
+        IF ccol$ <> "n/a" AND VAL(ccol$) = 0 THEN 'get BG for alpha blending
+            IF (NOT BoolTagTrue%(guiObjects$(objData%, this&), "AREA")) AND _
+               (NOT BoolTagTrue%(guiObjects$(objData%, this&), "BACKFILL")) THEN
+                bhan& = _NEWIMAGE(ABS(widt%), ABS(heig%), 256)
+                IF bhan& < -1 THEN _PUTIMAGE , _SOURCE, bhan&, (left%, topp%)-(left% + widt% - 1, topp% + heig% - 1)
+            END IF
+        END IF
+        rhan& = RemapImageFS&(ihan&, bhan&, _DEST)
+        IF bhan& < -1 THEN _FREEIMAGE bhan&
+    END IF
     IF rhan& >= -1 THEN
         SetTag ImageRes$, "ERROR", classID$ + "::" + methodID$ + " -> cannot remap image"
     ELSE
         SetTag guiObjects$(objData%, this&), "RHANDLE", LTRIM$(STR$(rhan&))
-        ccol$ = GetTagData$(guiObjects$(objData%, this&), "CLEARCOLOR", "n/a")
         IF ccol$ <> "n/a" THEN _CLEARCOLOR VAL(ccol$), rhan&
-        '--- get parent's position ---
-        plft% = VAL(GetTagData$(tagsID$, "LEFT", "0"))
-        ptop% = VAL(GetTagData$(tagsID$, "TOP", "0"))
-        '--- get object's properties ---
-        left% = plft% + VAL(GetTagData$(guiObjects$(objData%, this&), "LEFT", "0"))
-        topp% = ptop% + VAL(GetTagData$(guiObjects$(objData%, this&), "TOP", "0"))
-        widt% = VAL(GetTagData$(guiObjects$(objData%, this&), "WIDTH", "0"))
-        heig% = VAL(GetTagData$(guiObjects$(objData%, this&), "HEIGHT", "0"))
         '--- do flip corrections (_PUTIMAGE bug workaround) ---
         IF widt% < 0 THEN left% = left% - 1: widt% = widt% + 2
         IF heig% < 0 THEN topp% = topp% - 1: heig% = heig% + 2

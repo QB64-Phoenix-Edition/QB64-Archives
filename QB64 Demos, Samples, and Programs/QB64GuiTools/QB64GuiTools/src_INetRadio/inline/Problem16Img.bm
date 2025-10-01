@@ -1,0 +1,142 @@
+'============================================================
+'=== This file was created with MakeDATA.bas by RhoSigma, ===
+'=== you must $INCLUDE this at the end of your program.   ===
+'============================================================
+
+'-----------------------------
+'--- ReadProblem16ImgData$ ---
+'-----------------------------
+' This function will read the DATAs you've created with MakeDATA.bas
+' into a string, no data will be written to disk. If you rather wanna
+' rebuild the original file on disk, then use the write function below.
+'
+' You may directly pass the returned string to _SNDOPEN, _LOADIMAGE or
+' _LOADFONT when using the memory load capabilities of these commands.
+'----------
+' SYNTAX:
+'   dataStr$ = ReadProblem16ImgData$
+'----------
+' RESULT:
+'   --- dataStr$ ---
+'    The data of the embedded file. This is in fact the same as if you
+'    had opend the file and read its entire content into a single string.
+'---------------------------------------------------------------------
+FUNCTION ReadProblem16ImgData$
+'--- option _explicit requirements ---
+DIM numL&, numB&, rawdata$, stroffs&, i&, dat&
+'--- read DATAs ---
+RESTORE Problem16Img
+READ numL&, numB&
+rawdata$ = SPACE$((numL& * 4) + numB&)
+stroffs& = 1
+FOR i& = 1 TO numL&
+    READ dat&
+    MID$(rawdata$, stroffs&, 4) = MKL$(dat&)
+    stroffs& = stroffs& + 4
+NEXT i&
+IF numB& > 0 THEN
+    FOR i& = 1 TO numB&
+        READ dat&
+        MID$(rawdata$, stroffs&, 1) = CHR$(dat&)
+        stroffs& = stroffs& + 1
+    NEXT i&
+END IF
+'--- set result ---
+ReadProblem16ImgData$ = rawdata$
+END FUNCTION
+
+'------------------------------
+'--- WriteProblem16ImgData$ ---
+'------------------------------
+' This function will write the DATAs you've created with MakeDATA.bas
+' back to disk and so it rebuilds the original file.
+'
+' After the writeback call, only use the returned realFile$ to access the
+' written file. It's your given path, but with an maybe altered filename
+' (number added) in order to avoid the overwriting of an already existing
+' file with the same name in the given location.
+'----------
+' SYNTAX:
+'   realFile$ = WriteProblem16ImgData$ (wantFile$)
+'----------
+' INPUTS:
+'   --- wantFile$ ---
+'    The filename you would like to write the DATAs to, can contain
+'    a full or relative path.
+'----------
+' RESULT:
+'   --- realFile$ ---
+'    - On success this is the path and filename finally used after all
+'      applied checks, use only this returned filename to access the
+'      written file.
+'    - On failure this function will panic with the appropriate runtime
+'      error code which you may trap and handle as needed with your own
+'      ON ERROR GOTO... handler.
+'---------------------------------------------------------------------
+FUNCTION WriteProblem16ImgData$ (file$)
+'--- option _explicit requirements ---
+DIM po%, body$, ext$, num%, numL&, numB&, rawdata$, stroffs&, i&, dat&, ff%
+'--- separate filename body & extension ---
+FOR po% = LEN(file$) TO 1 STEP -1
+    IF MID$(file$, po%, 1) = "." THEN
+        body$ = LEFT$(file$, po% - 1)
+        ext$ = MID$(file$, po%)
+        EXIT FOR
+    ELSEIF MID$(file$, po%, 1) = "\" OR MID$(file$, po%, 1) = "/" OR po% = 1 THEN
+        body$ = file$
+        ext$ = ""
+        EXIT FOR
+    END IF
+NEXT po%
+'--- avoid overwriting of existing files ---
+num% = 1
+WHILE _FILEEXISTS(file$)
+    file$ = body$ + "(" + LTRIM$(STR$(num%)) + ")" + ext$
+    num% = num% + 1
+WEND
+'--- write DATAs ---
+RESTORE Problem16Img
+READ numL&, numB&
+rawdata$ = SPACE$((numL& * 4) + numB&)
+stroffs& = 1
+FOR i& = 1 TO numL&
+    READ dat&
+    MID$(rawdata$, stroffs&, 4) = MKL$(dat&)
+    stroffs& = stroffs& + 4
+NEXT i&
+IF numB& > 0 THEN
+    FOR i& = 1 TO numB&
+        READ dat&
+        MID$(rawdata$, stroffs&, 1) = CHR$(dat&)
+        stroffs& = stroffs& + 1
+    NEXT i&
+END IF
+ff% = FREEFILE
+OPEN file$ FOR OUTPUT AS ff%
+PRINT #ff%, rawdata$;
+CLOSE ff%
+'--- set result ---
+WriteProblem16ImgData$ = file$
+EXIT FUNCTION
+
+'--- DATAs representing the contents of file Problem16px.png
+'---------------------------------------------------------------------
+Problem16Img:
+DATA 112,7
+DATA &H474E5089,&H0A1A0A0D,&H0D000000,&H52444849,&H10000000,&H10000000,&H00000608,&HFFF31F00
+DATA &H00000061,&H59487009,&H0B000073,&H0B000013,&H9A000113,&H0000189C,&H44497901,&HCB385441
+DATA &H4BBFD095,&HC71C611B,&H0B93F7F1,&H07F52068,&HA2EC14D1,&H27149752,&HA99825C1,&HEE976C74
+DATA &H22ED0E2D,&H17FC03FD,&H3A41D1D2,&H822EAC74,&H68B3894B,&H04A5A60B,&HC1D5B109,&H91DC92E6
+DATA &HBC4DA2A4,&HCF3DDDCB,&H03DCBB9D,&H79BF33DE,&HA03CFDF1,&HDFEF3B79,&HBF772E15,&HB4FF3F7C
+DATA &HEDF1F67D,&H1180579B,&H4075A5D7,&H9DDA54B1,&H872F8CCA,&H8BE788FE,&H12819FF3,&HA5DFBF50
+DATA &HB3AE0074,&H643DFAA4,&HA44CCFBF,&H44E581A6,&H1D3B0C17,&H5E96332B,&HA349A690,&H3AE91D5A
+DATA &H4EB8102D,&H2D6BFFDD,&H34874738,&HD03FFF5D,&H13B4EB8D,&HE1B34D7A,&H85111F1C,&HBAA4FF21
+DATA &H0112AE06,&H3B5527A7,&HB0089252,&H0746E8C3,&H65B42768,&H53A4E170,&H408B80A4,&HD12701F5
+DATA &H3820CD05,&H17C08577,&H36903B02,&H980227E0,&H601AD27B,&HC0C2B744,&H0EB6FDF2,&HA5304ED0
+DATA &HFAA4361A,&HA2D52B76,&H409779E5,&H3A19D710,&H8F2E52A0,&HF66CFCAB,&HCFB59B3A,&H8DFED6CC
+DATA &H011375E7,&H5B8AD61F,&H9B47C985,&HF570A2CF,&H6144C4E9,&HAF9FF7EF,&H9DA91F71,&HBD7ED5E0
+DATA &H060DA41C,&HDBAE4D96,&HC02B022B,&HDA8183C1,&H25959F8F,&H123EB47F,&HDBA19506,&H3C922201
+DATA &HEBE4C421,&H8BF2F9C7,&H253F6E5C,&H133006C4,&H1501DDD7,&HDA2AA4B6,&H00B65EDF,&H49000000
+DATA &H45,&H4E,&H44,&HAE,&H42,&H60,&H82
+END FUNCTION
+

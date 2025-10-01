@@ -129,7 +129,7 @@ ELSE
             NEXT sa!
         NEXT hu!
         _DEST d&
-        imag$ = ImageC$("INIT", NewTag$("IMAGEHANDLE", LTRIM$(STR$(cwim&))) + NewTag$("LEFT", "2") + NewTag$("TOP", "2") + NewTag$("WIDTH", LTRIM$(STR$(widt% - 4))) + NewTag$("HEIGHT", LTRIM$(STR$(widt% - 4))) + NewTag$("CLEARCOLOR", "39"))
+        imag$ = ImageC$("INIT", NewTag$("IMAGEHANDLE", LTRIM$(STR$(cwim&))) + NewTag$("LEFT", "2") + NewTag$("TOP", "2") + NewTag$("WIDTH", LTRIM$(STR$(widt% - 4))) + NewTag$("HEIGHT", LTRIM$(STR$(widt% - 4))) + NewTag$("CLEARCOLOR", "0"))
         guiObjects$(objData%, this&) = guiObjects$(objData%, this&) + ChildTag$("IMG0", imag$)
         symb$ = SymbolC$("INIT", NewTag$("WHICH", "tapeRecord") + NewTag$("LEFT", LTRIM$(STR$((widt% / 2) - 5))) + NewTag$("TOP", LTRIM$(STR$((widt% / 2) - 5))) + NewTag$("WIDTH", "10") + NewTag$("HEIGHT", "10"))
         guiObjects$(objData%, this&) = guiObjects$(objData%, this&) + ChildTag$("SYM0", symb$)
@@ -208,7 +208,11 @@ meGet:
 IF ValidObject%(this&, thisTag$, ColorwheelRes$, classID$, methodID$, tagsID$) THEN
     '--- get the requested tags ---
     temp$ = GetTagData$(tagsID$, "TAGNAMES", "n/a")
-    IF temp$ <> "n/a" THEN ColorwheelRes$ = GetTags$(guiObjects$(objData%, this&), temp$)
+    IF temp$ <> "n/a" THEN
+        ColorwheelRes$ = GetTags$(guiObjects$(objData%, this&), temp$)
+    ELSE
+        ColorwheelRes$ = GetTags$(guiObjects$(objData%, this&), guiInitTags$)
+    END IF
 END IF
 RETURN
 '---------------------------------------------------------------------

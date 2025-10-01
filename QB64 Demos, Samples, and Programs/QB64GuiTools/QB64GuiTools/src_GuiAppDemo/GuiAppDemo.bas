@@ -130,6 +130,7 @@ CONST uehRETRY% = 1, uehNEXT% = 2, uehEXIT% = 3
 '-----
 appLastErr% = ERR
 IF appLastErr% = 1000 THEN RESUME emergencyExit 'immediate exit request
+IF appLastErr% = 1001 THEN GOSUB MainLoop_PermanentHandler: RESUME NEXT
 
 IF appErrCnt% >= appErrMax% THEN
     dummy$ = MessageBox$("Error16px.png", appExeName$,_
@@ -137,7 +138,7 @@ IF appErrCnt% >= appErrMax% THEN
                          "recursive Errors !!|~" +_
                          "Program will cleanup and terminate|" +_
                          "via internal emergency exit.",_
-                         "{IMG Error16px.png 39}Ok, got it...")
+                         "{IMG Error16px.png 0}Ok, got it...")
     RESUME emergencyExit
 END IF
 
@@ -181,7 +182,7 @@ SELECT CASE appLastErr%
         uehText$ = uehText$ + " occurred|in source file line" + STR$(appErrorArr%(appErrCnt%, 1))
         uehText$ = uehText$ + " !!|~Program will cleanup and terminate|via internal emergency exit."
         dummy$ = MessageBox$("Error16px.png", appExeName$, uehText$,_
-                             "{IMG Error16px.png 39}Ok, got it...")
+                             "{IMG Error16px.png 0}Ok, got it...")
         uehResType% = uehEXIT%
 END SELECT
 QB64ErrorOn
@@ -212,7 +213,7 @@ UserMain:
 '=====================================================================
 
 SetupScreen 1024, 768, 0
-appCR$ = "The GuiTools Framework v0.15, Done by RhoSigma, Roland Heyder"
+appCR$ = "The GuiTools Framework v0.20, Done by RhoSigma, Roland Heyder"
 _TITLE appExeName$ + " - [" + appPCName$ + "] - " + appCR$
 
 '------------------------------
@@ -1338,10 +1339,12 @@ BackImage$ = ImageC$("INIT",_
 '--- Here we can define the remaining global variables, which are not
 '--- needed for object initialization, but during runtime.
 '-----
-done% = 0 'our main loop continuation boolean
+init% = -1 'init state indicator (handler control, don't touch)
+done% = 0 'main loop (ie. program) keeps running until this is set true
+'-----
 subClicks% = 1 'try to find out, what this is used for :)
-IF _FILEEXISTS("qb64.exe") THEN
-    'FileSelect$() initial drawer (if compiled to QB64 folder)
+IF _FILEEXISTS("qb64.exe") OR _FILEEXISTS("qb64pe.exe") THEN
+    'FileSelect$() initial drawer (if compiled to qb64 folder)
     fsStartDir$ = "QB64GuiTools\images"
 ELSE
     'FileSelect$() initial drawer (if compiled to source folder)
@@ -1386,7 +1389,7 @@ WHILE NOT done%
     'to init eg. a Button and then get notified, if it got clicked. So
     'all this is covered by the just following call...
     '-----------------------------------------------------------------
-    mess$ = GetGUIMsg$
+    mess$ = GetGUIMsg$(0)
     '--------------- START OF EVENT HANDLER ---------------
     'Here comes a generic event handler, which can be used in this form
     'in any GuiTools based programs. Just fill the required event type
@@ -1420,7 +1423,13 @@ WHILE NOT done%
     '$INCLUDE: 'handlers\mouseover.bm'
     '$INCLUDE: 'handlers\gadgetdown.bm'
     '$INCLUDE: 'handlers\gadgetup.bm'
+    '-----
+    'The next two handlers are independend from any GUI events.
+    '-----
+    '$INCLUDE: 'handlers\initdone.bm'
+    '$INCLUDE: 'handlers\permanent.bm'
     '---------------- END OF EVENT HANDLER ----------------
+    init% = 0
     '
     '-----------------------------------------------------------------
     'These outputs are not required for the GUI operations, it's just for
@@ -1451,7 +1460,7 @@ WEND
 '--- Who did it? ---
 IF BoolTagTrue%(abou$, "CHECKED") THEN
     dummy$ = MessageBox$("", "About",_
-                         "The GuiTools Framework v0.15|" +_
+                         "The GuiTools Framework v0.20|" +_
                          "Done by RhoSigma, Roland Heyder|~" +_
                          "Thanx for your interest in my work.",_
                          "{SYM RhoSigma * 10 * 2}It's been a pleasure!")
@@ -1492,21 +1501,21 @@ dummy$ = GenC$("KILL", RedCrossSym$) 'no longer needed
 RETURN
 '----------
 RefreshSizeGaugePage3:
-widt% = VAL(GetTagData$(GenC$("GET", EndingSlider1$ + NewTag$("TAGNAMES", "LEVEL")), "LEVEL", "250"))
-heig% = VAL(GetTagData$(GenC$("GET", EndingSlider2$ + NewTag$("TAGNAMES", "LEVEL")), "LEVEL", "175"))
+widt% = VAL(GetObjTagData$(EndingSlider1$, "LEVEL", "250"))
+heig% = VAL(GetObjTagData$(EndingSlider2$, "LEVEL", "175"))
 perc% = 100 / (250 * 175) * (widt% * heig%)
 dummy$ = GenC$("SET", EndingGauge$ + NewTag$("LEVEL", LTRIM$(STR$(perc%))))
 RETURN
 '----------
 RefreshColorGaugePage5:
-pRed% = VAL(GetTagData$(GenC$("GET", PalRGBSliderR$ + NewTag$("TAGNAMES", "LEVEL")), "LEVEL", "0"))
-pGre% = VAL(GetTagData$(GenC$("GET", PalRGBSliderG$ + NewTag$("TAGNAMES", "LEVEL")), "LEVEL", "0"))
-pBlu% = VAL(GetTagData$(GenC$("GET", PalRGBSliderB$ + NewTag$("TAGNAMES", "LEVEL")), "LEVEL", "0"))
+pRed% = VAL(GetObjTagData$(PalRGBSliderR$, "LEVEL", "0"))
+pGre% = VAL(GetObjTagData$(PalRGBSliderG$, "LEVEL", "0"))
+pBlu% = VAL(GetObjTagData$(PalRGBSliderB$, "LEVEL", "0"))
 _PALETTECOLOR 255, _RGB32(pRed%, pGre%, pBlu%)
 RETURN
 '----------
 RefreshScrollImagePage6:
-IF BoolTagTrue%(GenC$("GET", Page6$ + NewTag$("TAGNAMES", "ACTIVE")), "ACTIVE") THEN
+IF BoolTagTrue%(GenC$("GET", Page6$), "ACTIVE") THEN
     IF guiViews$(0) = "" THEN
         COLOR guiTextPen%, guiBackPen%
         _PRINTSTRING (620, 615), "+---------------------------------+"
@@ -1515,20 +1524,20 @@ IF BoolTagTrue%(GenC$("GET", Page6$ + NewTag$("TAGNAMES", "ACTIVE")), "ACTIVE") 
         dummy$ = GenC$("SET", ScrImgScrollerH$ + NewTag$("TOTALNUM", "0"))
         dummy$ = GenC$("SET", ScrImgScrollerV$ + NewTag$("TOTALNUM", "0"))
     ELSE
-        imag& = VAL(GetTagData$(GenC$("GET", ObjectTag$(guiViews$(0), "BGIMG") + NewTag$("TAGNAMES", "RHANDLE")), "RHANDLE", "-1"))
+        imag& = VAL(GetObjTagData$(ObjectTag$(guiViews$(0), "BGIMG"), "RHANDLE", "-1"))
         dummy$ = GenC$("SET", ScrImgScrollerH$ + NewTag$("TOTALNUM", LTRIM$(STR$(_WIDTH(imag&)))))
         dummy$ = GenC$("SET", ScrImgScrollerV$ + NewTag$("TOTALNUM", LTRIM$(STR$(_HEIGHT(imag&)))))
-        htop% = VAL(GetTagData$(GenC$("GET", ScrImgScrollerH$ + NewTag$("TAGNAMES", "TOPNUM")), "TOPNUM", "0"))
-        vtop% = VAL(GetTagData$(GenC$("GET", ScrImgScrollerV$ + NewTag$("TAGNAMES", "TOPNUM")), "TOPNUM", "0"))
+        htop% = VAL(GetObjTagData$(ScrImgScrollerH$, "TOPNUM", "0"))
+        vtop% = VAL(GetObjTagData$(ScrImgScrollerV$, "TOPNUM", "0"))
         _PUTIMAGE (548, 559), imag&, _DEST, (htop%, vtop%)-(419 + htop% - 1, 164 + vtop% - 1)
     END IF
 END IF
 RETURN
 '----------
 RefreshSelectionDisplaysPage7:
-lv1$ = GetTagData$(GenC$("GET", MultiLVwithIMG$ + NewTag$("TAGNAMES", "DATA")), "DATA", "")
-lv2$ = GetTagData$(GenC$("GET", MultiLVPlain$ + NewTag$("TAGNAMES", "DATA")), "DATA", "")
-ra1$ = GetTagData$(GenC$("GET", MultiRadio1$ + NewTag$("TAGNAMES", "DATA")), "DATA", "")
+lv1$ = GetObjTagData$(MultiLVwithIMG$, "DATA", "")
+lv2$ = GetObjTagData$(MultiLVPlain$, "DATA", "")
+ra1$ = GetObjTagData$(MultiRadio1$, "DATA", "")
 dummy$ = GenC$("SET", MultiTextLVI$ + NewTag$("TEXT", lv1$))
 dummy$ = GenC$("SET", MultiTextLVP$ + NewTag$("TEXT", lv2$))
 dummy$ = GenC$("SET", MultiTextRAD$ + NewTag$("TEXT", ra1$))
@@ -1537,7 +1546,7 @@ RETURN
 '---------------------------------------------------------------------
 '~~~ My SUBs/FUNCs
 '=====================================================================
-'This is a simple help function for debugging. If any method call seems
+'Next is a simple help function for debugging. If any method call seems
 'not to give you the expected results, then you can enclose the call with
 'this function. If the method call will return any errors or warnings,
 'then these will be shown to you in a MessageBox. If no errors/warnings
@@ -1555,13 +1564,18 @@ IF UCASE$(ShowErrSwitch$) = "ON" THEN
     IF ValidateTags%(tagString$, "ERROR", -1) THEN
         dummy$ = MessageBox$("Error16px.png", "Error Tag",_
                              GetTagData$(tagString$, "ERROR", "empty"),_
-                             "{IMG Error16px.png 39}Ok, got it...")
+                             "{IMG Error16px.png 0}Ok, got it...")
     ELSEIF ValidateTags%(tagString$, "WARNING", -1) THEN
         dummy$ = MessageBox$("Problem16px.png", "Warning Tag",_
                              GetTagData$(tagString$, "WARNING", "empty"),_
-                             "{IMG Problem16px.png 39}Ok, got it...")
+                             "{IMG Problem16px.png 0}Ok, got it...")
     END IF
 END IF
+END FUNCTION
+'--- Function to define/return the program's version string.
+'-----
+FUNCTION VersionGuiAppDemo$
+VersionGuiAppDemo$ = MID$("$VER: GuiAppDemo 4.0 (06-Apr-2018) by RhoSigma :END$", 7, 40)
 END FUNCTION
 '~~~~~
 '=====================================================================
@@ -1611,11 +1625,12 @@ IF appFont& > 0 THEN _FONT appFont&: ELSE _FONT 16
 'uncomment and adjust the _LOADIMAGE line below to load a specific icon,
 'otherwise the GuiTools Framework's default icon is used as embedded via
 'the GuiAppIcon.h/.bm files located in the dev_framework folder
-'appIcon& = _LOADIMAGE("QB64GuiTools\images\icons\RhoSigma32px.png", 32)
+'newIcon& = _LOADIMAGE("QB64GuiTools\images\icons\RhoSigma32px.png", 32)
+IF newIcon& < -1 THEN appIcon& = newIcon& 'on success override default with new one
 IF appIcon& < -1 THEN _ICON appIcon&
 'if you rather use $EXEICON then comment out the IF appIcon& ... line above
 'and uncomment and adjust the $EXEICON line below as you need instead, but
-'note it's QB64-GL only then, QB64-SDL will throw an error on $EXEICON
+'note it's QB64 v1.1+ then, older versions will throw an error on $EXEICON
 '$EXEICON:'QB64GuiTools\images\icons\Default.ico'
 '--- make screen visible ---
 _DELAY 0.025
@@ -1627,7 +1642,7 @@ ELSE
     LastPosUpdate 0 'load last known win pos
 END IF
 _DELAY 0.025: _SCREENSHOW
-IF appGLVComp% THEN _DELAY 0.05: UntitledToTop
+IF appGLVComp% THEN _DELAY 0.05: WindowToTop ("Untitled" + CHR$(0))
 END SUB
 
 '-------------------
@@ -1648,10 +1663,10 @@ _SCREENHIDE
 IF appIcon& < -1 THEN _FREEIMAGE appIcon&: appIcon& = -1
 '--- free the font (if any) and invalidate its handle ---
 _FONT 16
-IF appFont& > 0 THEN _FREEFONT appFont&: appFont& = 0
+IF appFont& > 0 AND guiPGVCount% = 0 THEN _FREEFONT appFont&: appFont& = 0
 '--- free the screen and invalidate its handle ---
 SCREEN 0
-IF appScreen& < -1 THEN _FREEIMAGE appScreen&: appScreen& = -1
+IF appScreen& < -1 THEN _FREEIMAGE appScreen&: appScreen& = 0
 END SUB
 '~~~~~
 
@@ -1660,6 +1675,7 @@ END SUB
 '*****************************************************
 
 '$INCLUDE: 'QB64GuiTools\dev_framework\support\BufferSupport.bm'
+'$INCLUDE: 'QB64GuiTools\dev_framework\support\CharsetSupport.bm'
 '$INCLUDE: 'QB64GuiTools\dev_framework\support\ConvertSupport.bm'
 '$INCLUDE: 'QB64GuiTools\dev_framework\support\ImageSupport.bm'
 '$INCLUDE: 'QB64GuiTools\dev_framework\support\PackSupport.bm'

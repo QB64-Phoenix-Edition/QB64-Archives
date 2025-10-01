@@ -20,14 +20,15 @@
 '| === MakeCARR.bas ===                                              |
 '|                                                                   |
 '| == Create a C/C++ array out of the given file, so you can embed   |
-'| == it in your program and write it back when needed.              |
+'| == it into your program and read it or write it back when needed. |
 '|                                                                   |
 '| == Two files are created, the .h file, which contains the array(s)|
 '| == and some functions, and a respective .bm file which needs to   |
-'| == be $INCLUDEd with your program and does provide the FUNCTION   |
-'| == to write back the array(s) into any file. All used functions   |
-'| == are standard library calls, no API calls are involved, so the  |
-'| == writeback should work on all QB64 supported platforms.         |
+'| == be $INCLUDEd with your program and does provide the FUNCTIONs  |
+'| == to read the array(s) into a string or write them back into any |
+'| == file. All used functions are standard library calls, no API    |
+'| == calls are involved, so the read and writeback should work on   |
+'| == all QB64 supported platforms.                                  |
 '|                                                                   |
 '| == Make sure to adjust the path for the .h file for your personal |
 '| == needs in the created .bm files (DECLARE LIBRARY), if required. |
@@ -60,10 +61,17 @@ UserInitHandler:
 'SUBs and FUNCTIONs. It's also considered good style to TempLog() the
 'written files in order for a correct cleanup in error/crash cases.
 '=====================================================================
-DIM SHARED RhoSigmaImgName$ 'my own icon used in SetupScreen()
 RhoSigmaImgName$ = WriteRhoSigmaImgArray$(appTempDir$ + "RhoSigma32px.png", -1)
 PlasmaImgName$ = WritePlasmaImgArray$(appTempDir$ + "Plasma.jpg", -1)
+AluminiumImgName$ = WriteAluminiumImgArray$(appTempDir$ + "Aluminium.jpg", -1)
+CrapImgName$ = WriteCrapImgArray$(appTempDir$ + "Crap.jpg", -1)
+PaperGrayImgName$ = WritePaperGrayImgArray$(appTempDir$ + "PaperGray.jpg", -1)
+MarbleBrownImgName$ = WriteMarbleBrownImgArray$(appTempDir$ + "MarbleBrown.jpg", -1)
+WallRoughImgName$ = WriteWallRoughImgArray$(appTempDir$ + "WallRough.jpg", -1)
 TempLog RhoSigmaImgName$, "": TempLog PlasmaImgName$, ""
+TempLog AluminiumImgName$, "": TempLog CrapImgName$, ""
+TempLog PaperGrayImgName$, "": TempLog MarbleBrownImgName$, ""
+TempLog WallRoughImgName$, ""
 '--- the next 3 blocks should always be kept ---
 DIM SHARED Info16Img$, Info32Img$ 'for Info MsgBoxes
 Info16Img$ = WriteInfo16ImgData$(appTempDir$ + "Info16px.png")
@@ -141,6 +149,7 @@ CONST uehRETRY% = 1, uehNEXT% = 2, uehEXIT% = 3
 '-----
 appLastErr% = ERR
 IF appLastErr% = 1000 THEN RESUME emergencyExit 'immediate exit request
+IF appLastErr% = 1001 THEN GOSUB MainLoop_PermanentHandler: RESUME NEXT
 
 IF appErrCnt% >= appErrMax% THEN
     dummy$ = MessageBox$("Error16px.png", appExeName$,_
@@ -148,7 +157,7 @@ IF appErrCnt% >= appErrMax% THEN
                          "recursive Errors !!|~" +_
                          "Program will cleanup and terminate|" +_
                          "via internal emergency exit.",_
-                         "{IMG Error16px.png 39}Ok, got it...")
+                         "{IMG Error16px.png 0}Ok, got it...")
     RESUME emergencyExit
 END IF
 
@@ -192,7 +201,7 @@ SELECT CASE appLastErr%
         uehText$ = uehText$ + " occurred|in source file line" + STR$(appErrorArr%(appErrCnt%, 1))
         uehText$ = uehText$ + " !!|~Program will cleanup and terminate|via internal emergency exit."
         dummy$ = MessageBox$("Error16px.png", appExeName$, uehText$,_
-                             "{IMG Error16px.png 39}Ok, got it...")
+                             "{IMG Error16px.png 0}Ok, got it...")
         uehResType% = uehEXIT%
 END SELECT
 QB64ErrorOn
@@ -223,7 +232,7 @@ UserMain:
 '=====================================================================
 
 SetupScreen 480, 313, 0
-appCR$ = "Convert File to C-Array v1.1, Done by RhoSigma, Roland Heyder"
+appCR$ = "Convert File to C-Array v2.0, Done by RhoSigma, Roland Heyder"
 _TITLE appExeName$ + " - " + appCR$
 
 '------------------------------
@@ -352,7 +361,7 @@ InputRatio$ = SliderC$("INIT",_
         NewTag$("IMAGEFILE", "PaperGray.jpg") +_
         NewTag$("AREA", "on") +_
         NewTag$("DISABLED", LTRIM$(STR$(NOT use%))) +_
-        NewTag$("TOOLTIP", "If packing gives less ratio than this, then|convert it unpacked and rather save the|time required for unpacking at writeback."))
+        NewTag$("TOOLTIP", "If packing gives less ratio than this,|then convert it unpacked, so you can|rather save the time for unpacking."))
 UseLzw$ = CheckboxC$("INIT",_
         NewTag$("LEFT", "434") +_
         NewTag$("TOP", "150") +_
@@ -427,7 +436,8 @@ Cancel$ = ButtonC$("INIT",_
 '--- Here we can define the remaining global variables, which are not
 '--- needed for object initialization, but during runtime.
 '-----
-done% = 0 'our main loop continuation boolean
+init% = -1 'init state indicator (handler control, don't touch)
+done% = 0 'main loop (ie. program) keeps running until this is set true
 '-----
 DIM SHARED lzwProgress$ 'progress indicator object for LzwPack$()
 
@@ -441,7 +451,7 @@ DIM SHARED lzwProgress$ 'progress indicator object for LzwPack$()
 _MOUSESHOW
 WHILE NOT done%
     _LIMIT 50
-    mess$ = GetGUIMsg$
+    mess$ = GetGUIMsg$(0)
     '--------------- START OF EVENT HANDLER ---------------
     'Here comes a generic event handler, which can be used in this form
     'in any GuiTools based programs. Just fill the required event type
@@ -475,7 +485,13 @@ WHILE NOT done%
     '$INCLUDE: 'handlers\mouseover.bm'
     '$INCLUDE: 'handlers\gadgetdown.bm'
     '$INCLUDE: 'handlers\gadgetup.bm'
+    '-----
+    'The next two handlers are independend from any GUI events.
+    '-----
+    '$INCLUDE: 'handlers\initdone.bm'
+    '$INCLUDE: 'handlers\permanent.bm'
     '---------------- END OF EVENT HANDLER ----------------
+    init% = 0
 WEND
 '~~~~~
 
@@ -508,7 +524,7 @@ RETURN
 '---------------------------------------------------------------------
 '~~~ My SUBs/FUNCs
 '=====================================================================
-'This is a simple help function for debugging. If any method call seems
+'Next is a simple help function for debugging. If any method call seems
 'not to give you the expected results, then you can enclose the call with
 'this function. If the method call will return any errors or warnings,
 'then these will be shown to you in a MessageBox. If no errors/warnings
@@ -526,13 +542,18 @@ IF UCASE$(ShowErrSwitch$) = "ON" THEN
     IF ValidateTags%(tagString$, "ERROR", -1) THEN
         dummy$ = MessageBox$("Error16px.png", "Error Tag",_
                              GetTagData$(tagString$, "ERROR", "empty"),_
-                             "{IMG Error16px.png 39}Ok, got it...")
+                             "{IMG Error16px.png 0}Ok, got it...")
     ELSEIF ValidateTags%(tagString$, "WARNING", -1) THEN
         dummy$ = MessageBox$("Problem16px.png", "Warning Tag",_
                              GetTagData$(tagString$, "WARNING", "empty"),_
-                             "{IMG Problem16px.png 39}Ok, got it...")
+                             "{IMG Problem16px.png 0}Ok, got it...")
     END IF
 END IF
+END FUNCTION
+'--- Function to define/return the program's version string.
+'-----
+FUNCTION VersionMakeCARR$
+VersionMakeCARR$ = MID$("$VER: MakeCARR 2.0 (26-Oct-2023) by RhoSigma :END$", 7, 38)
 END FUNCTION
 '---------------------------------------------------------------------
 'Convert the selected file into a C-Array, the return value indicates
@@ -564,22 +585,22 @@ MID$(hdrName$, 1, 1) = UCASE$(MID$(hdrName$, 1, 1)) 'capitalize 1st letter
 '--- check files ---
 IF LCASE$(FileExtension$(hdr$)) <> ".h" THEN
     res$ = MessageBox$("Error16px.png", "Error !!",_
-           "Header file must have .h extension!", "{IMG Error16px.png 39}I'll check")
+           "Header file must have .h extension!", "{IMG Error16px.png 0}I'll check")
     EXIT FUNCTION
 END IF
 IF (srcPath$ + src$) = (tarPath$ + tar$) THEN
     res$ = MessageBox$("Error16px.png", "Error !!",_
-           "Source and Target files are the same!", "{IMG Error16px.png 39}I'll check")
+           "Source and Target files are the same!", "{IMG Error16px.png 0}I'll check")
     EXIT FUNCTION
 END IF
 IF (srcPath$ + src$) = (hdrPath$ + hdr$) THEN
     res$ = MessageBox$("Error16px.png", "Error !!",_
-           "Source and Header files are the same!", "{IMG Error16px.png 39}I'll check")
+           "Source and Header files are the same!", "{IMG Error16px.png 0}I'll check")
     EXIT FUNCTION
 END IF
 IF (tarPath$ + tar$) = (hdrPath$ + hdr$) THEN
     res$ = MessageBox$("Error16px.png", "Error !!",_
-           "Target and Header files are the same!", "{IMG Error16px.png 39}I'll check")
+           "Target and Header files are the same!", "{IMG Error16px.png 0}I'll check")
     EXIT FUNCTION
 END IF
 IF _FILEEXISTS(tarPath$ + tar$) THEN
@@ -596,13 +617,13 @@ IF _FILEEXISTS(hdrPath$ + hdr$) THEN
 END IF
 sff% = SafeOpenFile%("I", srcPath$ + src$)
 IF sff% THEN CLOSE sff%: ELSE res$ = MessageBox$("Error16px.png", "Error !!",_
-                                   "Can't open/access source file!", "{IMG Error16px.png 39}I'll check")
+                                   "Can't open/access source file!", "{IMG Error16px.png 0}I'll check")
 tff% = SafeOpenFile%("O", tarPath$ + tar$)
 IF tff% THEN CLOSE tff%: ELSE res$ = MessageBox$("Error16px.png", "Error !!",_
-                                   "Can't open/access target file!", "{IMG Error16px.png 39}I'll check")
+                                   "Can't open/access target file!", "{IMG Error16px.png 0}I'll check")
 hff% = SafeOpenFile%("O", hdrPath$ + hdr$)
 IF hff% THEN CLOSE hff%: ELSE res$ = MessageBox$("Error16px.png", "Error !!",_
-                                   "Can't open/access header file!", "{IMG Error16px.png 39}I'll check")
+                                   "Can't open/access header file!", "{IMG Error16px.png 0}I'll check")
 IF sff% = 0 OR tff% = 0 OR hff% = 0 THEN EXIT FUNCTION
 '--- init converter ---
 IF use% THEN 'packing requested?
@@ -648,7 +669,7 @@ _DISPLAY: stim# = TIMER(0.001)
 tmpI$ = SPACE$(32)
 FOR vc& = 0 TO cntV&
     IF vc& = cntV& THEN numL& = (cntL& MOD 8180): ELSE numL& = 8180
-    PRINT #2, "static const unsigned int32 "; hdrName$; "L"; LTRIM$(STR$(vc&)); "[] = {"
+    PRINT #2, "static const uint32_t "; hdrName$; "L"; LTRIM$(STR$(vc&)); "[] = {"
     PRINT #2, "    "; LTRIM$(STR$(numL& * 8)); ","
     FOR z& = 1 TO numL&
         GET #1, , tmpI$: offI% = 1
@@ -673,7 +694,7 @@ res$ = GenC$("SET", OutputProgress$ + NewTag$("LEVEL", "100"))
 _AUTODISPLAY
 '--- read remaining BYTEs ---
 IF cntB& > 0 THEN
-    PRINT #2, "static const unsigned int8 "; hdrName$; "B[] = {"
+    PRINT #2, "static const uint8_t "; hdrName$; "B[] = {"
     PRINT #2, "    "; LTRIM$(STR$(cntB&)); ","
     PRINT #2, "    ";
     FOR x% = 1 TO cntB&
@@ -693,6 +714,23 @@ IF cntB& > 0 THEN
     PRINT #2, ""
 END IF
 '--- some functions ---
+PRINT #2, "// --- Function to copy the array(s) into the provided string buffer."
+PRINT #2, "// --- Buffer size is not checked, as MakeCARR makes sure it's sufficient."
+PRINT #2, "// ---------------------------------------------------------------------"
+PRINT #2, "void Read"; hdrName$; "Data(char *Buffer)"
+PRINT #2, "{"
+FOR vc& = 0 TO cntV&
+    PRINT #2, "    memcpy(Buffer, &"; hdrName$; "L"; LTRIM$(STR$(vc&)); "[1], "; hdrName$; "L"; LTRIM$(STR$(vc&)); "[0] << 2);"
+    IF vc& < cntV& OR cntB& > 0 THEN
+        PRINT #2, "    Buffer += ("; hdrName$; "L"; LTRIM$(STR$(vc&)); "[0] << 2);"
+        PRINT #2, ""
+    END IF
+NEXT vc&
+IF cntB& > 0 THEN
+    PRINT #2, "    memcpy(Buffer, &"; hdrName$; "B[1], "; hdrName$; "B[0]);"
+END IF
+PRINT #2, "}"
+PRINT #2, ""
 PRINT #2, "// --- Saved full qualified output path and filename, so we've no troubles"
 PRINT #2, "// --- when cleaning up, even if the current working folder was changed"
 PRINT #2, "// --- during program runtime."
@@ -711,10 +749,10 @@ PRINT #2, "// --- Function to write the array(s) back into a file, will return t
 PRINT #2, "// --- full qualified output path and filename on success, otherwise an"
 PRINT #2, "// --- empty string is returned (access/write errors, file truncated)."
 PRINT #2, "// ---------------------------------------------------------------------"
-PRINT #2, "const char *Write"; hdrName$; "Data(const char *FileName, int16 AutoClean)"
+PRINT #2, "const char *Write"; hdrName$; "Data(const char *FileName, int16_t AutoClean)"
 PRINT #2, "{"
-PRINT #2, "    FILE *han = NULL; // file handle"
-PRINT #2, "    int32 num = NULL; // written elements"
+PRINT #2, "    FILE   *han = NULL; // file handle"
+PRINT #2, "    int32_t num = NULL; // written elements"
 PRINT #2, ""
 PRINT #2, "    #ifdef QB64_WINDOWS"
 PRINT #2, "    if (!_fullpath("; hdrName$; "Name, FileName, 8192)) return "; CHR$(34); CHR$(34); ";"
@@ -766,6 +804,48 @@ PRINT #2, "' statement below does match the actual .h file location. It's best t
 PRINT #2, "' specify a relative path assuming your QB64 installation folder as root."
 PRINT #2, "'---------------------------------------------------------------------"
 PRINT #2, ""
+PRINT #2, "'--- declare C/C++ functions ---"
+tmp$ = hdrPath$ + FileNamePart$(hdr$)
+IF _FILEEXISTS("qb64.exe") OR _FILEEXISTS("qb64pe.exe") THEN
+    IF LEFT$(tmp$, LEN(CurrDIR$)) = CurrDIR$ THEN tmp$ = MID$(tmp$, LEN(CurrDIR$) + 1)
+END IF
+PRINT #2, "DECLARE LIBRARY "; CHR$(34); tmp$; CHR$(34); " 'Do not add .h here !!"
+PRINT #2, "    SUB Read"; hdrName$; "Data (StrBuf$)"
+PRINT #2, "    FUNCTION Write"; hdrName$; "Data$ (FileName$, BYVAL AutoClean%)"
+PRINT #2, "END DECLARE"
+PRINT #2, ""
+'--- read function ---
+PRINT #2, "'"; STRING$(LEN(tarName$) + 18, "-")
+PRINT #2, "'--- Read"; tarName$; "Array$ ---"
+PRINT #2, "'"; STRING$(LEN(tarName$) + 18, "-")
+PRINT #2, "' This function will read the array(s) you've created with MakeCARR.bas"
+PRINT #2, "' into a string, no data will be written to disk. If you rather wanna"
+PRINT #2, "' rebuild the original file on disk, then use the write function below."
+PRINT #2, "'"
+PRINT #2, "' You may directly pass the returned string to _SNDOPEN, _LOADIMAGE or"
+PRINT #2, "' _LOADFONT when using the memory load capabilities of these commands."
+PRINT #2, "'----------"
+PRINT #2, "' SYNTAX:"
+PRINT #2, "'   arrData$ = Read"; tarName$; "Array$"
+PRINT #2, "'----------"
+PRINT #2, "' RESULT:"
+PRINT #2, "'   --- arrData$ ---"
+PRINT #2, "'    The data of the embedded file. This is in fact the same as if you"
+PRINT #2, "'    had opend the file and read its entire content into a single string."
+PRINT #2, "'---------------------------------------------------------------------"
+PRINT #2, "FUNCTION Read"; tarName$; "Array$"
+PRINT #2, "'--- option _explicit requirements ---"
+PRINT #2, "DIM temp$"
+PRINT #2, "'--- get array & set result ---"
+PRINT #2, "temp$ = SPACE$("; LTRIM$(STR$(fl&)); ") 'Do not change this number !!"
+PRINT #2, "Read"; hdrName$; "Data temp$"
+IF NOT packed% THEN
+    PRINT #2, "Read"; tarName$; "Array$ = temp$"
+ELSE
+    PRINT #2, "Read"; tarName$; "Array$ = LzwUnpack$(temp$)"
+END IF
+PRINT #2, "END FUNCTION"
+PRINT #2, ""
 '--- writeback function ---
 PRINT #2, "'"; STRING$(LEN(tarName$) + 19, "-")
 PRINT #2, "'--- Write"; tarName$; "Array$ ---"
@@ -804,14 +884,6 @@ PRINT #2, "'    - On failure (write/access) this will be an empty string, so you
 PRINT #2, "'      should check for this before trying to access/open the file."
 PRINT #2, "'---------------------------------------------------------------------"
 PRINT #2, "FUNCTION Write"; tarName$; "Array$ (file$, clean%)"
-PRINT #2, "'--- declare C/C++ function ---"
-tmp$ = hdrPath$ + FileNamePart$(hdr$)
-IF _FILEEXISTS("qb64.exe") THEN
-    IF LEFT$(tmp$, LEN(CurrDIR$)) = CurrDIR$ THEN tmp$ = MID$(tmp$, LEN(CurrDIR$) + 2)
-END IF
-PRINT #2, "DECLARE LIBRARY "; CHR$(34); tmp$; CHR$(34); " 'Do not add .h here !!"
-PRINT #2, "    FUNCTION Write"; hdrName$; "Data$ (FileName$, BYVAL AutoClean%)"
-PRINT #2, "END DECLARE"
 PRINT #2, "'--- option _explicit requirements ---"
 PRINT #2, "DIM po%, body$, ext$, num%";
 IF packed% THEN PRINT #2, ", real$, ff%, rawdata$, filedata$": ELSE PRINT #2, ""
@@ -870,7 +942,7 @@ ELSE
 END IF
 ok$ = MessageBox$("Info16px.png", "Information !!", tmp$ +_
      IndexFormat$("Have a look into the created file (0{&})|", tar$, CHR$(0)) +_
-                  "to learn how to write the Array back into a file.",_
+                  "to learn about the available options to read or write|back the embedded data.",_
                   "{SYM Checkmark * * * *}")
 END FUNCTION
 '~~~~~
@@ -921,11 +993,12 @@ IF appFont& > 0 THEN _FONT appFont&: ELSE _FONT 16
 'uncomment and adjust the _LOADIMAGE line below to load a specific icon,
 'otherwise the GuiTools Framework's default icon is used as embedded via
 'the GuiAppIcon.h/.bm files located in the dev_framework folder
-appIcon& = _LOADIMAGE(RhoSigmaImgName$, 32)
+newIcon& = _LOADIMAGE(appTempDir$ + "RhoSigma32px.png", 32)
+IF newIcon& < -1 THEN appIcon& = newIcon& 'on success override default with new one
 IF appIcon& < -1 THEN _ICON appIcon&
 'if you rather use $EXEICON then comment out the IF appIcon& ... line above
 'and uncomment and adjust the $EXEICON line below as you need instead, but
-'note it's QB64-GL only then, QB64-SDL will throw an error on $EXEICON
+'note it's QB64 v1.1+ then, older versions will throw an error on $EXEICON
 '$EXEICON:'QB64GuiTools\images\icons\Default.ico'
 '--- make screen visible ---
 _DELAY 0.025
@@ -937,7 +1010,7 @@ ELSE
     LastPosUpdate 0 'load last known win pos
 END IF
 _DELAY 0.025: _SCREENSHOW
-IF appGLVComp% THEN _DELAY 0.05: UntitledToTop
+IF appGLVComp% THEN _DELAY 0.05: WindowToTop ("Untitled" + CHR$(0))
 END SUB
 
 '-------------------
@@ -958,10 +1031,10 @@ _SCREENHIDE
 IF appIcon& < -1 THEN _FREEIMAGE appIcon&: appIcon& = -1
 '--- free the font (if any) and invalidate its handle ---
 _FONT 16
-IF appFont& > 0 THEN _FREEFONT appFont&: appFont& = 0
+IF appFont& > 0 AND guiPGVCount% = 0 THEN _FREEFONT appFont&: appFont& = 0
 '--- free the screen and invalidate its handle ---
 SCREEN 0
-IF appScreen& < -1 THEN _FREEIMAGE appScreen&: appScreen& = -1
+IF appScreen& < -1 THEN _FREEIMAGE appScreen&: appScreen& = 0
 END SUB
 '~~~~~
 
@@ -970,6 +1043,7 @@ END SUB
 '*****************************************************
 
 '$INCLUDE: 'QB64GuiTools\dev_framework\support\BufferSupport.bm'
+'$INCLUDE: 'QB64GuiTools\dev_framework\support\CharsetSupport.bm'
 '$INCLUDE: 'QB64GuiTools\dev_framework\support\ConvertSupport.bm'
 '$INCLUDE: 'QB64GuiTools\dev_framework\support\ImageSupport.bm'
 '$INCLUDE: 'QB64GuiTools\dev_framework\support\PackSupport.bm'
@@ -1000,6 +1074,11 @@ END SUB
 
 '$INCLUDE: 'inline\RhoSigmaImg.bm'
 '$INCLUDE: 'inline\PlasmaImg.bm'
+'$INCLUDE: 'inline\AluminiumImg.bm'
+'$INCLUDE: 'inline\CrapImg.bm'
+'$INCLUDE: 'inline\PaperGrayImg.bm'
+'$INCLUDE: 'inline\MarbleBrownImg.bm'
+'$INCLUDE: 'inline\WallRoughImg.bm'
 
 '$INCLUDE: 'inline\Info16Img.bm'
 '$INCLUDE: 'inline\Info32Img.bm'

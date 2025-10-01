@@ -118,11 +118,12 @@ CONST csetSIZEOF% = chunkSIZEOF% + CHcsetLEN%
 TYPE ChunkWPOS 'holds the last window position of a named application
     wposSTDC AS Chunk 'standard chunk
     wposNAME AS STRING * 30 'application's EXE name
+    wposVCRC AS LONG 'view checksum for additional GuiViews
     wposXPOS AS INTEGER 'window's left position
     wposYPOS AS INTEGER 'window's top position
 END TYPE
 CONST CHwposID$ = "WPOS"
-CONST CHwposLEN% = 30 + 2 + 2
+CONST CHwposLEN% = 30 + 4 + 2 + 2
 CONST wposSIZEOF% = chunkSIZEOF% + CHwposLEN%
 
 TYPE ChunkVARS 'holds the source values for GetUniqueID$()
@@ -184,8 +185,8 @@ DECLARE LIBRARY "QB64GuiTools\dev_framework\GuiAppFrame" 'Do not add .h here !!
     FUNCTION RegexIsActive% ()
     'Regular expression matching must be explicitly enabled in the file
     'GuiAppFrame.h (dev_framework). Carfully read the notes given there.
-    SUB UntitledToTop ()
-    'Bring the still untitled window to the top of the Z-Order.
+    SUB WindowToTop (winTitle$) 'add CHR$(0) to title
+    'Bring the named window to the top of the Z-Order.
     FUNCTION FindColor& (BYVAL r&, BYVAL g&, BYVAL b&, BYVAL i&, BYVAL mi&, BYVAL ma&)
     'This is a replacement for the _RGB function. It works for up to 8-bit
     '(256 colors) images only and needs a valid image. It can limit the
@@ -232,13 +233,14 @@ DIM SHARED appIcon& 'default icon handle
 DIM SHARED appFont& 'default font handle
 '--- additional views ---
 REDIM SHARED guiViews$(0)
+DIM SHARED guiVCRCSum& 'title checksum, if not main instance
 DIM SHARED guiAGVIndex& 'active GuiView index
 guiAGVIndex& = 0
+DIM SHARED guiPGVCount% 'pending GuiViews counter
+guiPGVCount% = 0
 DIM SHARED guiWinX%, guiWinY% 'current window (GuiView) position
-'--- colorspace (ImageClass) ---
-'This array must be cleared, if the screen palette changes during runtime.
-'It's normally done by calling the "NEWPAL" method of the "ImageC" class.
-REDIM SHARED fsNearCol%(&HFFFFFF)
+'--- colorspace (helper array for RemapImageFS&()) ---
+REDIM SHARED fsNearCol~%%(&HFFFFFF)
 '--- objects control ---
 CONST objData% = 0, objType% = 1, objFlags% = 2, objConn% = 3 '1st dimension IDs
 REDIM SHARED guiObjects$(3, 0)
@@ -259,10 +261,10 @@ guiATTProps$ = ""
 
 '--- check/parse shell command line ---
 temp$ = COMMAND$
-IF INSTR(temp$, "IUGNEPO") = 0 AND INSTR(temp$, "XOBEGASSEM") = 0 AND INSTR(temp$, "TCELESELIF") = 0 AND INSTR(temp$, "WEIVEDIUG") = 0 THEN
+IF INSTR(temp$, "IUGNEPO") = 0 AND INSTR(temp$, "XOBEGASSEM") = 0 AND INSTR(temp$, "TCELESELIF") = 0 THEN
     'NOTE: GuiTools internal command names are spelled in reverse order to
     '      avoid faulty detection in regular command lines given by the user.
-    temp$ = "REGULAR" 'regular user given command line
+    temp$ = "NWONKNU" 'regular user given command line
 END IF
 REDIM cmdArgs$(0)
 dummy% = ParseLine&(temp$, MKI$(&H0920), "'", cmdArgs$(), 5)
@@ -282,6 +284,7 @@ IF appGLVComp% THEN
     i% = INSTR(",1030,1031,1033,1034,1036,1040,1043,1044,1053,2055,2057,2058,2060,2070,4108,6153,", temp$)
     IF i% > 0 THEN appKBLIdent% = kbli%
 END IF
+temp$ = "" 'erase temp data
 
 '--- init global GuiApps management ---
 GOSUB CreateGlobalTemps
@@ -301,16 +304,16 @@ END IF
 appSMObj%& = CreateSMObject%&("RhoSigma-GuiApp-MainInpSM-" + appProgID$ + CHR$(0), 8192)
 
 '--- ready to go ---
-GOSUB UserInitHandler
+IF cmdArgs$(0) = "NWONKNU" THEN GOSUB UserInitHandler 'call for main instance only
 SELECT CASE cmdArgs$(0)
     CASE "IUGNEPO"
-        '====================================================================
-        'Every program can have several independed GuiViews which appear in
-        'its own detached windows (see SUB OpenGuiView()). The program simply
-        'calls itself given the appropriate command line options.
-        '--------------------------------------------------------------------
+        '================================================================
+        'Every program can have several independent GuiViews which appear
+        'in its own detached windows (see SUB OpenGuiView()). The program
+        'simply calls itself given the appropriate command line options.
+        '----------------------------------------------------------------
         OpenGuiView cmdArgs$(1), "*** RhoSigma-OpenGuiView-HandlerCall ***", VAL(cmdArgs$(2))
-        '====================================================================
+        '================================================================
     CASE "XOBEGASSEM"
         '================================================================
         'Programs also deliver its own detached Message Box viewer, which
@@ -320,44 +323,36 @@ SELECT CASE cmdArgs$(0)
                              cmdArgs$(2), cmdArgs$(3))
         '================================================================
     CASE "TCELESELIF"
-        '==================================================================
+        '================================================================
         'Similar to the above, there's also an detached File Select viewer,
         'which is called by the FUNCTION FileSelect$().
-        '------------------------------------------------------------------
+        '----------------------------------------------------------------
         dummy$ = FileSelect$(cmdArgs$(1), "*** RhoSigma-FileSelect-HandlerCall ***",_
                              VAL(cmdArgs$(2)), cmdArgs$(3), cmdArgs$(4))
-        '==================================================================
-    CASE "WEIVEDIUG"
-        '=======================================================================
-        'Also every program has its own detached Guide Viewer, which is called
-        'by the SUB Guide(), if the asyncron flag is set or if it must follow an
-        'ALINK in any guide database.
-        '-----------------------------------------------------------------------
-        _TITLE "GuideView"
-        '--- not yet implemented ---
-        '=======================================================================
+        '================================================================
     CASE ELSE
-        '===============================================================
-        'If no OPENGUI, MESSAGEBOX, FILESELECT or GUIDEVIEW command line
-        'is detected, then it's considered a regular program start.
-        '---------------------------------------------------------------
+        '=======================================================
+        'If no OPENGUI, MESSAGEBOX or FILESELECT command line is
+        'detected, then it's considered a regular program start.
+        '-------------------------------------------------------
         GOSUB UserMain 'call user's main program
-        '===============================================================
+        '=======================================================
 END SELECT
 emergencyExit:
 LastPosUpdate -1 'save last known win pos
 CloseScreen
-GOSUB UserExitHandler
+IF guiVCRCSum& = 0 THEN GOSUB UserExitHandler 'call for main instance only
 CLOSE
 
 '--- cleanup views & shared memory ---
 FOR i& = 1 TO UBOUND(guiViews$)
     temp& = VAL(GetTagData$(guiViews$(i&), "IHANDLE", "-1"))
-    IF temp& < -1 THEN _FREEIMAGE temp&
+    IF temp& < -1 THEN _FONT 16, temp&: _FREEIMAGE temp&
     RemoveSMObject VAL(GetTagData$(guiViews$(i&), "SMOBJ", "0"))
     RemoveMutex VAL(GetTagData$(guiViews$(i&), "ISOPEN", "0"))
 NEXT i&
 RemoveSMObject appSMObj%&
+IF appFont& > 0 THEN _FREEFONT appFont&
 
 '--- cleanup temporary data ---
 InternalErrHandler
@@ -387,7 +382,7 @@ DATA 4
 '--- *.tmp files go into appTempDir$ and are temporary in the session, ---
 '--- other extensions go into appLocalDir$ and will survive sessions   ---
 DATA "gtprefs.bin","PREF"
-DATA "wpbrain.bin","WINB"
+DATA "wpbrain_v2.bin","WINB"
 DATA "univars.tmp","UVAR"
 DATA "templog.tmp","TMPL"
 
@@ -484,7 +479,7 @@ IF SeekChunk&(crgtFile%, 1, CHtlogID$) > 0 THEN
     WHILE NOT EOF(crgtFile%)
         crgtLog& = SEEK(crgtFile%)
         GET crgtFile%, , crgtTLOG(0)
-        IF appProgID$ = "" OR crgtTLOG(0).tlogACCESSOR = appProgID$ THEN
+        IF (EOF(crgtFile%) = 0) AND (appProgID$ = "" OR crgtTLOG(0).tlogACCESSOR = appProgID$) THEN
             InternalErrHandler
             KILL appTempDir$ + RStrip$(stmFIXED%, crgtTLOG(0).tlogNAME)
             UserErrHandler
@@ -534,5 +529,6 @@ RETURN
 InternalErrorHandler:
 appLastErr% = ERR
 IF appLastErr% = 1000 THEN RESUME emergencyExit 'immediate exit request
+IF appLastErr% = 1001 THEN GOSUB MainLoop_PermanentHandler
 RESUME NEXT
 
